@@ -1,130 +1,147 @@
-# MCP Dev Loop: Trello → Cursor → GitHub
+# MCP Dev Loop: Trello → Multi-Agent (Cursor, Claude Code, Windsurf, Copilot) → GitHub
 
-**Human-in-the-loop AI development** — Trello tickets drive analysis, implementation, commits, and board sync in Cursor.
+**Human-in-the-loop AI development** — Trello tickets drive structured analysis, implementation, automated tests, commits, and GitHub Pull Requests across any AI coding agent.
 
-> ❌ **Not autonomous AI** — the agent suggests, you approve, the agent executes.  
-> ✅ **Human-in-the-loop** — no surprise commits, pushes, or Trello updates.
+> ❌ **Not autonomous AI** — the agent suggests, plans, and tests; you approve; the agent executes.  
+> ✅ **Human-in-the-loop** — no surprise commits, pushes, or unverified Trello updates.
 
-Clone this repo, connect Trello via MCP, and run a repeatable dev loop your whole team can use.
+Connect Trello via MCP and run a repeatable, safe dev loop across **Claude Code, Cursor, Windsurf, VS Code Copilot, and Claude Desktop**.
+
+---
 
 ## Architecture
 
 ```
-┌──────────────┐     ┌───────────────────┐     ┌─────────────────┐
-│   Trello     │ ──► │ Trello MCP Server │ ──► │  Cursor Agent   │
-│  (Tickets)   │     │  (this repo)      │     │ (you control)   │
-└──────────────┘     └───────────────────┘     └────────┬────────┘
-                                                        │
-                        ┌───────────────────────────────┼───────────────────────────────┐
-                        ▼                               ▼                               ▼
-                 ┌─────────────┐                ┌─────────────┐                ┌─────────────┐
-                 │  Codebase   │ ─────────────► │   GitHub    │ ─────────────► │   Trello    │
-                 │ Node/React… │    commit/PR   │ commits/PRs │  update/sync   │  comments   │
-                 └─────────────┘                └─────────────┘                └─────────────┘
+┌──────────────┐     ┌───────────────────────┐     ┌────────────────────────────┐
+│   Trello     │ ──► │   Trello MCP Server   │ ──► │ AI Coding Agent (Human Ctrl)│
+│  (Tickets)   │     │ (Standalone / Node)   │     │ Claude Code / Cursor / etc.│
+└──────────────┘     └───────────────────────┘     └─────────────┬──────────────┘
+                                                                 │
+                                ┌────────────────────────────────┼────────────────────────────────┐
+                                ▼                                ▼                                ▼
+                         ┌─────────────┐                  ┌─────────────┐                  ┌─────────────┐
+                         │  Codebase   │ ───────────────► │   GitHub    │ ───────────────► │   Trello    │
+                         │ Edits/Tests │   automated PR   │ PRs/Commits │   update/sync    │  comments   │
+                         └─────────────┘                  └─────────────┘                  └─────────────┘
 ```
 
-## Repo structure
+---
+
+## Supported AI Coding Agents
+
+- **Cursor**: Full support via `.cursor/mcp.json` + rule guardrails
+- **Claude Code**: Terminal agent support via `claude mcp add`
+- **Claude Desktop**: Native macOS & Windows support via `claude_desktop_config.json`
+- **Windsurf**: Native Cascade support via `~/.codeium/windsurf/mcp_config.json`
+- **VS Code / GitHub Copilot**: Integrated MCP via `.vscode/mcp.json`
+- **Antigravity / Gemini CLI**: Multi-agent orchestration support
+
+---
+
+## Repository Structure
 
 | Path | Purpose |
 |------|---------|
-| [`trello-mcp-server/`](./trello-mcp-server/) | Core engine — Trello API + MCP tools |
-| [`cursor-rules/`](./cursor-rules/) | Agent rules, skill, approval hooks |
-| [`workflows/`](./workflows/) | Command system (`analyze ticket`, `implement ticket`, …) |
+| [`SKILL.md`](./SKILL.md) | Universal agent skill definition (Agensi.io compliant) |
+| [`trello-mcp-server/`](./trello-mcp-server/) | Core engine — Trello API, list auto-detection, PR & test tools |
+| [`configs/`](./configs/) | Ready-to-use MCP configuration templates for all major agents |
+| [`bin/setup.sh`](./bin/setup.sh) | 1-Click interactive multi-agent installer (macOS / Linux) |
+| [`bin/setup.ps1`](./bin/setup.ps1) | 1-Click interactive multi-agent installer (Windows PowerShell) |
+| [`scripts/package-agensi.js`](./scripts/package-agensi.js) | Agensi.io commercial packager (<50 MB verified release) |
+| [`docs/agensi-listing.md`](./docs/agensi-listing.md) | Marketplace copy, pricing ($14), and seller checklist |
+| [`cursor-rules/`](./cursor-rules/) | Cursor agent rules, skills, and approval hooks |
+| [`workflows/`](./workflows/) | Command workflows (`analyze ticket`, `implement ticket`, …) |
 | [`examples/`](./examples/) | End-to-end session walkthroughs |
-| [`docs/`](./docs/) | Setup, MCP, safety model, example prompts |
-| [`bin/`](./bin/) | `install.sh`, `sync-global-cursor.sh` |
-| [`.cursor/`](./.cursor/) | Ready-to-use Cursor config (MCP + rules + hooks) |
 
-## Quick start
+---
+
+## Quick Start (1 Minute)
+
+### Option A: Interactive 1-Click Setup (Recommended)
 
 ```bash
-git clone https://github.com/Mih-Nig-Afe/MCP-Dev-Loop-Trello-Cursor-GitHub.git
-cd MCP-Dev-Loop-Trello-Cursor-GitHub
-./bin/install.sh
-./bin/sync-global-cursor.sh
+# macOS / Linux
+./bin/setup.sh
+
+# Windows (PowerShell)
+.\bin\setup.ps1
 ```
 
-1. Edit `.env` with [Trello API credentials](https://trello.com/power-ups/admin)
-2. `npm run test-api` — verify connection + full card extraction
-3. Cursor Settings → MCP → confirm `trello` is connected (Refresh if needed)
-4. In chat: **`analyze my assigned tasks`**
+The setup script prompts for your Trello API credentials and automatically configures your selected AI agent.
 
-Full guide: [docs/setup.md](./docs/setup.md)
+### Option B: Manual Setup
 
-## Daily workflow
+1. Copy `.env.example` to `.env` and fill in:
+   ```env
+   TRELLO_API_KEY=your_trello_api_key
+   TRELLO_TOKEN=your_trello_token
+   TRELLO_BOARD_ID=optional_board_id
+   ```
+   *(Get free credentials at [trello.com/power-ups/admin](https://trello.com/power-ups/admin))*
+2. Build standalone runner & test:
+   ```bash
+   npm run build
+   npm test
+   ```
+3. Copy the appropriate configuration from [`configs/`](./configs/) to your agent's config directory.
+
+---
+
+## Daily Workflow
 
 | Step | You say | Agent does |
 |------|---------|------------|
-| 1. Pull | `analyze my assigned tasks` | Lists your Trello queue |
-| 2. Plan | `analyze ticket <id>` | Full card extraction → **PLAN** (no code) |
-| 3. Approve | `proceed` | — |
-| 4. Build | `implement ticket <id>` | Edits codebase |
-| 5. Commit prep | `prepare commit for ticket <id>` | Shows diff + draft message |
-| 6. Commit | `commit this change` | Creates commit (you approve via hook) |
-| 7. Sync | `update trello ticket <id>` | Comment + attach commit URL |
+| 1. Pull | `analyze my assigned tasks` | Lists your assigned Trello queue |
+| 2. Plan | `analyze ticket <id>` | Full card extraction → **PLAN** (read-only, no code edits) |
+| 3. Approve | `proceed` | Gives approval to start implementation |
+| 4. Build | `implement ticket <id>` | Modifies codebase according to approved plan |
+| 5. Test | `run tests for ticket <id>` | Runs project test suite (`run_pre_commit_tests`) |
+| 6. Commit | `prepare commit for ticket <id>` | Shows diff + drafts ticket-linked commit message |
+| 7. PR | `create pr for ticket <id>` | Creates GitHub PR (`create_github_pr`) & links to Trello |
+| 8. Sync | `update trello ticket <id>` | Posts comment + moves card to Done / Review |
 
-Command reference: [workflows/README.md](./workflows/README.md)  
-Example sessions: [examples/](./examples/)
+---
 
-## Commands
+## MCP Tools Reference
 
-```
-analyze my assigned tasks
-analyze ticket <cardId>
-implement ticket <cardId>
-fix issue in ticket <cardId>
-prepare commit for ticket <cardId>
-commit this change
-update trello ticket <cardId>
-mark in progress
-mark done
-```
+- **`get_my_cards`**: Assigned cards with description, labels, checklists, and badges.
+- **`get_card`**: Complete extraction (description, comments, attachments, checklists, custom fields, member activity).
+- **`auto_detect_lists`**: Semantically matches board columns (To Do, In Progress, Review, Done) — no manual list ID setup needed.
+- **`run_pre_commit_tests`**: Runs local test suite (`npm test`, `pytest`, `cargo test`, `go test`) prior to commit.
+- **`create_github_pr`**: Creates a GitHub branch, pushes, opens a PR, and attaches the URL to the Trello card.
+- **`mark_in_progress`**: Moves ticket to In Progress (with auto-list matching).
+- **`mark_done`**: Moves ticket to Done (with auto-list matching).
+- **`attach_commit`**: Attaches commit or PR URL to card.
+- **`add_comment`**: Posts review or implementation comment.
+- **`get_boards`** / **`get_board_cards`** / **`get_board_lists`**: Full board navigation.
 
-Slash aliases: `/analyze-ticket`, `/implement-ticket`, `/prepare-commit`, `/update-trello`
+---
 
-## Safety (enforced)
+## Agensi.io Marketplace Release
 
-| Action | Protection |
-|--------|------------|
-| `git commit` | Cursor hook → asks your approval |
-| `git push` | Hook → asks approval (`main`/`master` extra gate) |
-| Trello comment / move | Hook → blocked unless you said `update trello` or `mark done` |
-| Agent rules | Analyze phase = no code; commit/sync only on explicit command |
-
-Details: [docs/safety-model.md](./docs/safety-model.md)
-
-## MCP tools
-
-`get_my_cards` · `get_card` (full extraction) · `get_card_comments` · `add_comment` · `update_card` · `move_card` · `attach_commit` · `get_boards` · `get_board_cards` · `get_board_lists` · `mark_in_progress` · `mark_done`
-
-`get_card` returns description, all comments, attachments, checklists, custom fields, stickers, activity, and list/board context in one call.
-
-## Use in another project
-
-1. `./bin/sync-global-cursor.sh` — registers MCP globally + copies skill
-2. Copy [`cursor-rules/`](./cursor-rules/) into your app's `.cursor/`
-3. Keep `.env` in this repo (global MCP `cwd` points here)
-
-Guide: [docs/cursor-setup.md](./docs/cursor-setup.md)
-
-## Stay up to date
+To package this project for [Agensi.io](https://www.agensi.io/sell):
 
 ```bash
-git pull
-./bin/sync-global-cursor.sh
-npm run install:mcp   # if dependencies changed
+npm run package:agensi
 ```
 
-Then Refresh MCP in Cursor Settings.
+This compiles a standalone single-file bundle via `esbuild`, validates the root `SKILL.md` frontmatter, verifies package size (<50 MB, typically ~110 KB), and produces:
+```
+dist/mcp-dev-loop-agensi.zip
+```
+Complete seller copy, pricing ($14.00), and upload guide: [docs/agensi-listing.md](./docs/agensi-listing.md).
 
-## Roadmap
+---
 
-- Auto-task prioritization
-- Codebase memory layer
-- PR auto-review
-- Test runner integration before commit
-- Slack/Telegram notifications
+## Safety & Human Oversight
+
+- **Strict Approval Gates**: AI never commits, pushes, or moves Trello cards without explicit user commands.
+- **Pre-commit Test Guard**: Verifies project test status before staging files.
+- **Zero Secret Leaks**: Automated scans skim diffs to ensure `.env` and API credentials are never committed.
+
+---
 
 ## License
 
-MIT — see [LICENSE](./LICENSE)
+MIT License — Copyright (c) 2026 Mihretab Afework (Mih-Nig-Afe). See [LICENSE](./LICENSE).  
+Commercial Agensi Distribution: See [LICENSE-COMMERCIAL.md](./LICENSE-COMMERCIAL.md).
