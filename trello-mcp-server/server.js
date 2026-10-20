@@ -22,7 +22,7 @@ async function main() {
 
   const server = new McpServer({
     name: "trello",
-    version: "1.1.0",
+    version: "2.0.0",
     description: "MCP Dev Loop — Trello ticket integration for Claude Code, Cursor, Copilot, Windsurf, Antigravity",
   });
 
