@@ -193,6 +193,60 @@ export class TrelloClient {
     return this.request(`/boards/${boardId}/lists?fields=id,name,pos,closed`);
   }
 
+  async autoDetectLists(boardId) {
+    const lists = await this.getBoardLists(boardId);
+    const openLists = lists.filter((l) => !l.closed);
+
+    const matchByRegex = (patterns) => {
+      for (const pattern of patterns) {
+        const found = openLists.find((l) => pattern.test(l.name.trim()));
+        if (found) return { id: found.id, name: found.name };
+      }
+      return null;
+    };
+
+    return {
+      todo: matchByRegex([/^(to[\s_-]?do|backlog|tasks?|incoming)$/i, /to[\s_-]?do/i, /backlog/i]),
+      inProgress: matchByRegex([/^(in[\s_-]?progress|doing|wip|active|in[\s_-]?dev)$/i, /in[\s_-]?progress/i, /doing/i, /wip/i]),
+      review: matchByRegex([/^(in[\s_-]?review|review|qa|testing|feedback)$/i, /review/i, /qa/i, /test/i]),
+      done: matchByRegex([/^(done|completed|finished|shipped|closed)$/i, /done/i, /complete/i, /shipped/i]),
+      all: openLists.map((l) => ({ id: l.id, name: l.name })),
+    };
+  }
+
+  async resolveListForStatus(cardId, status, fallbackConfig = {}) {
+    const explicitMap = {
+      in_progress: fallbackConfig.listInProgress,
+      review: fallbackConfig.listReview,
+      done: fallbackConfig.listDone,
+    };
+
+    if (explicitMap[status]) {
+      return { id: explicitMap[status], name: `configured (${status})` };
+    }
+
+    const card = await this.getCardRaw(cardId);
+    const detected = await this.autoDetectLists(card.idBoard);
+
+    if (status === "in_progress" && detected.inProgress) {
+      return detected.inProgress;
+    }
+    if (status === "review" && detected.review) {
+      return detected.review;
+    }
+    if (status === "done" && detected.done) {
+      return detected.done;
+    }
+    if (status === "todo" && detected.todo) {
+      return detected.todo;
+    }
+
+    throw new Error(
+      `Could not automatically detect a list matching status '${status}'. Available lists on board: ` +
+      detected.all.map((l) => `"${l.name}" (${l.id})`).join(", ")
+    );
+  }
+
   async getBoardCards(boardId) {
     const [lists, cards] = await Promise.all([
       this.getBoardLists(boardId),
