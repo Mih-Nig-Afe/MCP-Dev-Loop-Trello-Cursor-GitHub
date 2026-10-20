@@ -48,8 +48,8 @@ Manual `~/.cursor/mcp.json`:
   "mcpServers": {
     "trello": {
       "command": "bash",
-      "args": ["/absolute/path/to/MCP-Dev-Loop-Trello-Cursor-GitHub/trello-mcp-server/bin/start-mcp.sh"],
-      "cwd": "/absolute/path/to/MCP-Dev-Loop-Trello-Cursor-GitHub",
+      "args": ["/absolute/path/to/trello-dev-loop/trello-mcp-server/bin/start-mcp.sh"],
+      "cwd": "/absolute/path/to/trello-dev-loop",
       "env": {}
     }
   }

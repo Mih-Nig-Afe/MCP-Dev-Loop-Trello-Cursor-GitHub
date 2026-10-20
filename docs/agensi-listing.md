@@ -13,7 +13,7 @@ Use this document to list **Trello Dev Loop** on [Agensi.io](https://www.agensi.
 | **Category** | Developer Tools & Productivity |
 | **Listing Price** | **$14.00** *(Net Payout: $9.80 / 70% creator share. Agensi covers Stripe fees).* |
 | **Upload Package** | `dist/mcp-dev-loop-agensi.zip` *(Generated via `npm run package:agensi`, size ~110 KB)* |
-| **Repository Link** | https://github.com/Mih-Nig-Afe/MCP-Dev-Loop-Trello-Cursor-GitHub |
+| **Repository Link** | https://github.com/Mih-Nig-Afe/trello-dev-loop |
 | **Author** | Mihretab Afework (`Mih-Nig-Afe`) |
 | **Tags** | `trello`, `mcp`, `cursor`, `claude-code`, `windsurf`, `github`, `git-workflow`, `developer-tools` |
 

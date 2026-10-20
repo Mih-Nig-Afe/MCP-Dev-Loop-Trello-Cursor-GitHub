@@ -11,10 +11,10 @@ Agent behavior for **MCP Dev Loop**. Copy into your project or use this repo as 
 
 ```bash
 # From your app repo root
-cp -R /path/to/MCP-Dev-Loop-Trello-Cursor-GitHub/cursor-rules/ai-dev-agent.mdc .cursor/rules/
-cp -R /path/to/MCP-Dev-Loop-Trello-Cursor-GitHub/cursor-rules/skills .cursor/
-cp -R /path/to/MCP-Dev-Loop-Trello-Cursor-GitHub/cursor-rules/hooks .cursor/
-cp /path/to/MCP-Dev-Loop-Trello-Cursor-GitHub/cursor-rules/hooks.json .cursor/
+cp -R /path/to/trello-dev-loop/cursor-rules/ai-dev-agent.mdc .cursor/rules/
+cp -R /path/to/trello-dev-loop/cursor-rules/skills .cursor/
+cp -R /path/to/trello-dev-loop/cursor-rules/hooks .cursor/
+cp /path/to/trello-dev-loop/cursor-rules/hooks.json .cursor/
 chmod +x .cursor/hooks/*.sh
 ```
 

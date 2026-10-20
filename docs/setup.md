@@ -12,8 +12,8 @@ Get **MCP Dev Loop: Trello → Cursor → GitHub** running in under 10 minutes.
 ## 1. Clone
 
 ```bash
-git clone https://github.com/Mih-Nig-Afe/MCP-Dev-Loop-Trello-Cursor-GitHub.git
-cd MCP-Dev-Loop-Trello-Cursor-GitHub
+git clone https://github.com/Mih-Nig-Afe/trello-dev-loop.git
+cd trello-dev-loop
 ```
 
 > The repo may redirect from the old `trello-cursor-dev-loop` URL — both work.
@@ -85,8 +85,8 @@ Manual `~/.cursor/mcp.json` entry:
   "mcpServers": {
     "trello": {
       "command": "bash",
-      "args": ["/absolute/path/to/MCP-Dev-Loop-Trello-Cursor-GitHub/trello-mcp-server/bin/start-mcp.sh"],
-      "cwd": "/absolute/path/to/MCP-Dev-Loop-Trello-Cursor-GitHub",
+      "args": ["/absolute/path/to/trello-dev-loop/trello-mcp-server/bin/start-mcp.sh"],
+      "cwd": "/absolute/path/to/trello-dev-loop",
       "env": {}
     }
   }
