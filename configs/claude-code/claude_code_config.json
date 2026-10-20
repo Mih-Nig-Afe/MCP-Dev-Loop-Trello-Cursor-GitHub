@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "trello": {
+      "command": "node",
+      "args": ["dist/trello-mcp.cjs"],
+      "env": {
+        "TRELLO_API_KEY": "${TRELLO_API_KEY}",
+        "TRELLO_TOKEN": "${TRELLO_TOKEN}"
+      }
+    }
+  },
+  "instructions": "For Claude Code CLI, run: claude mcp add trello node /path/to/dist/trello-mcp.cjs -e TRELLO_API_KEY=xxx -e TRELLO_TOKEN=yyy"
+}

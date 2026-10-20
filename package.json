@@ -1,9 +1,13 @@
 {
   "name": "mcp-dev-loop",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "type": "module",
   "description": "MCP Dev Loop: Trello → Cursor → GitHub — human-in-the-loop AI dev workflow",
   "private": true,
   "scripts": {
+    "build": "npm run build --prefix trello-mcp-server",
+    "test": "npm test --prefix trello-mcp-server",
+    "package:agensi": "node scripts/package-agensi.js",
     "install:mcp": "npm install --prefix trello-mcp-server",
     "start": "npm start --prefix trello-mcp-server",
     "test-api": "npm run test-api --prefix trello-mcp-server"

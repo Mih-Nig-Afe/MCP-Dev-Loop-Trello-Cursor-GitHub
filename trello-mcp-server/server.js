@@ -2,8 +2,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { loadConfig } from "./lib/env.js";
 import { TrelloClient } from "./lib/trelloClient.js";
+
+const execAsync = promisify(exec);
 
 function textResult(data) {
   const payload = typeof data === "string" ? data : JSON.stringify(data, null, 2);
@@ -16,8 +22,8 @@ async function main() {
 
   const server = new McpServer({
     name: "trello",
-    version: "1.0.0",
-    description: "MCP Dev Loop — Trello ticket integration for Cursor",
+    version: "2.0.0",
+    description: "MCP Dev Loop — Trello ticket integration for Claude Code, Cursor, Copilot, Windsurf, Antigravity",
   });
 
   server.tool(
@@ -155,32 +161,238 @@ async function main() {
   );
 
   server.tool(
-    "mark_in_progress",
-    "Move card to the configured In Progress list (TRELLO_LIST_IN_PROGRESS).",
-    { cardId: z.string().describe("Trello card ID") },
-    async ({ cardId }) => {
-      if (!config.listInProgress) {
+    "auto_detect_lists",
+    "Automatically detect semantic list IDs (todo, inProgress, review, done) on a Trello board.",
+    {
+      boardId: z
+        .string()
+        .optional()
+        .describe("Board ID (defaults to TRELLO_BOARD_ID in .env)"),
+    },
+    async ({ boardId }) => {
+      const id = boardId || config.boardId;
+      if (!id) {
         return textResult({
-          error: "TRELLO_LIST_IN_PROGRESS is not set in .env. Use get_board_lists first.",
+          error: "Provide boardId or set TRELLO_BOARD_ID in .env",
         });
       }
-      const card = await trello.moveCard(cardId, config.listInProgress);
-      return textResult({ ok: true, id: card.id, listId: card.idList, status: "in_progress" });
+      const detected = await trello.autoDetectLists(id);
+      return textResult(detected);
+    }
+  );
+
+  server.tool(
+    "mark_in_progress",
+    "Move card to In Progress. Automatically resolves the target list if TRELLO_LIST_IN_PROGRESS is not set.",
+    { cardId: z.string().describe("Trello card ID") },
+    async ({ cardId }) => {
+      try {
+        const targetList = await trello.resolveListForStatus(cardId, "in_progress", config);
+        const card = await trello.moveCard(cardId, targetList.id);
+        return textResult({
+          ok: true,
+          id: card.id,
+          listId: card.idList,
+          listName: targetList.name,
+          status: "in_progress",
+        });
+      } catch (err) {
+        return textResult({ error: err.message });
+      }
     }
   );
 
   server.tool(
     "mark_done",
-    "Move card to the configured Done list (TRELLO_LIST_DONE).",
+    "Move card to Done. Automatically resolves the target list if TRELLO_LIST_DONE is not set.",
     { cardId: z.string().describe("Trello card ID") },
     async ({ cardId }) => {
-      if (!config.listDone) {
+      try {
+        const targetList = await trello.resolveListForStatus(cardId, "done", config);
+        const card = await trello.moveCard(cardId, targetList.id);
         return textResult({
-          error: "TRELLO_LIST_DONE is not set in .env. Use get_board_lists first.",
+          ok: true,
+          id: card.id,
+          listId: card.idList,
+          listName: targetList.name,
+          status: "done",
+        });
+      } catch (err) {
+        return textResult({ error: err.message });
+      }
+    }
+  );
+
+  server.tool(
+    "run_pre_commit_tests",
+    "Run automated project tests before preparing or committing code. Verifies your changes do not break tests.",
+    {
+      command: z
+        .string()
+        .optional()
+        .describe("Custom test command to execute. Defaults to project test script (e.g. npm test, pytest, go test)."),
+      cwd: z
+        .string()
+        .optional()
+        .describe("Working directory for test execution (defaults to current process directory)."),
+    },
+    async ({ command, cwd }) => {
+      const testDir = cwd || process.cwd();
+      let cmd = command;
+
+      if (!cmd) {
+        const pkgPath = resolve(testDir, "package.json");
+        if (existsSync(pkgPath)) {
+          try {
+            const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+            if (pkg.scripts && pkg.scripts.test) {
+              cmd = "npm test";
+            }
+          } catch {}
+        }
+        if (!cmd && existsSync(resolve(testDir, "pytest.ini"))) {
+          cmd = "pytest";
+        }
+        if (!cmd && existsSync(resolve(testDir, "go.mod"))) {
+          cmd = "go test ./...";
+        }
+        if (!cmd && existsSync(resolve(testDir, "Cargo.toml"))) {
+          cmd = "cargo test";
+        }
+        if (!cmd) {
+          cmd = "npm test";
+        }
+      }
+
+      try {
+        const { stdout, stderr } = await execAsync(cmd, {
+          cwd: testDir,
+          timeout: 60000,
+          env: { ...process.env, CI: "true" },
+        });
+        return textResult({
+          ok: true,
+          command: cmd,
+          passed: true,
+          output: (stdout + "\n" + stderr).trim(),
+        });
+      } catch (err) {
+        return textResult({
+          ok: false,
+          command: cmd,
+          passed: false,
+          exitCode: err.code || 1,
+          output: ((err.stdout || "") + "\n" + (err.stderr || "") + "\n" + err.message).trim(),
         });
       }
-      const card = await trello.moveCard(cardId, config.listDone);
-      return textResult({ ok: true, id: card.id, listId: card.idList, status: "done" });
+    }
+  );
+
+  server.tool(
+    "create_github_pr",
+    "Create a GitHub Pull Request from the current branch and attach it to the Trello card.",
+    {
+      cardId: z.string().describe("Trello card ID to link with this Pull Request"),
+      title: z.string().optional().describe("Pull Request title (defaults to ticket name)"),
+      body: z.string().optional().describe("Pull Request description"),
+      base: z.string().optional().describe("Target base branch (default: develop or main)"),
+      draft: z.boolean().optional().describe("Create as draft PR"),
+    },
+    async ({ cardId, title, body, base = "develop", draft = false }) => {
+      let card;
+      try {
+        card = await trello.getCardFull(cardId);
+      } catch {
+        card = { id: cardId, name: `Card ${cardId}`, url: `https://trello.com/c/${cardId}` };
+      }
+
+      const prTitle = title || `[Trello-${card.idShort || card.id.slice(-4)}] ${card.name}`;
+      const prBody =
+        body ||
+        `## Trello Ticket\n- [${card.name}](${card.shortUrl || card.url})\n\n## Summary\nImplemented changes according to ticket requirements.\n\n---\n*Created via MCP Dev Loop*`;
+
+      let currentBranch = "develop";
+      try {
+        const { stdout } = await execAsync("git rev-parse --abbrev-ref HEAD");
+        currentBranch = stdout.trim();
+      } catch {}
+
+      let prUrl = null;
+      let method = "none";
+
+      // 1. Try GitHub CLI (gh)
+      try {
+        const draftFlag = draft ? " --draft" : "";
+        const ghCmd = `gh pr create --title "${prTitle.replace(/"/g, '\\"')}" --body "${prBody.replace(/"/g, '\\"')}" --base "${base}" --head "${currentBranch}"${draftFlag}`;
+        const { stdout } = await execAsync(ghCmd);
+        const match = stdout.match(/https:\/\/github\.com\/[^\s]+/);
+        if (match) {
+          prUrl = match[0];
+          method = "gh-cli";
+        }
+      } catch (ghErr) {
+        // 2. Try GitHub REST API if GITHUB_TOKEN is available
+        const token = config.githubToken;
+        const repo = config.githubRepo;
+        if (token && repo) {
+          try {
+            const apiRes = await fetch(`https://api.github.com/repos/${repo}/pulls`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github.v3+json",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                title: prTitle,
+                body: prBody,
+                head: currentBranch,
+                base,
+                draft,
+              }),
+            });
+            const data = await apiRes.json();
+            if (data.html_url) {
+              prUrl = data.html_url;
+              method = "github-api";
+            }
+          } catch {}
+        }
+      }
+
+      // 3. Fallback: generate web compare URL
+      if (!prUrl) {
+        let repoSlug = config.githubRepo;
+        if (!repoSlug) {
+          try {
+            const { stdout: remoteUrl } = await execAsync("git remote get-url origin");
+            const match = remoteUrl.match(/github\.com[:/]([^/.]+\/[^/.]+)/);
+            if (match) repoSlug = match[1].replace(/\.git$/, "");
+          } catch {}
+        }
+        if (repoSlug) {
+          prUrl = `https://github.com/${repoSlug}/compare/${base}...${currentBranch}?expand=1&title=${encodeURIComponent(prTitle)}&body=${encodeURIComponent(prBody)}`;
+          method = "compare-url";
+        }
+      }
+
+      let trelloAttached = false;
+      if (prUrl) {
+        try {
+          await trello.attachUrl(cardId, prUrl, "Pull Request");
+          await trello.addComment(cardId, `Pull Request linked: ${prUrl}`);
+          trelloAttached = true;
+        } catch {}
+      }
+
+      return textResult({
+        ok: true,
+        method,
+        prUrl,
+        branch: currentBranch,
+        baseBranch: base,
+        trelloAttached,
+      });
     }
   );
 

@@ -1,6 +1,6 @@
 {
   "name": "@mcp-dev-loop/trello-mcp-server",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Trello MCP server for MCP Dev Loop — fetch cards, comments, status updates, commit attachments",
   "type": "module",
   "main": "server.js",
@@ -9,6 +9,9 @@
   },
   "scripts": {
     "start": "node server.js",
+    "start:bundle": "node dist/trello-mcp.cjs",
+    "build": "esbuild server.js --bundle --platform=node --target=node18 --format=cjs --outfile=dist/trello-mcp.cjs --minify",
+    "test": "node --test tests/*.test.js",
     "test-api": "node scripts/test-api.js"
   },
   "dependencies": {
@@ -18,5 +21,8 @@
   "engines": {
     "node": ">=18"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
 }
