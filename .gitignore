@@ -5,3 +5,4 @@ trello-mcp-server/node_modules/
 !.env.example
 *.log
 .DS_Store
+build/
